@@ -170,7 +170,7 @@ def graphql_server():
 
 if __name__ == "__main__":
     # Run on all interfaces (0.0.0.0) so it works in LAN as well
-    app.run(debug=True, host="127.0.0.1", port=5000)
+    app.run(debug=True, host="0.0.0.0", port=7417)
 
 
 
