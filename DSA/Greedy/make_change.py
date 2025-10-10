@@ -1,45 +1,51 @@
-# Greedy Algorithm for Make Change Problem - Unlimited Supply
+def merge_sort(arr):
+    if len(arr) <= 1:
+        return arr
 
-def make_change(amount_dollars):
-    amount = int(round(amount_dollars * 100))
-    denominations = [
-        10000,  # $100
-        5000,   # $50
-        2000,   # $20
-        1000,   # $10
-        500,    # $5
-        100,    # $1
-        25,     # 25¢
-        10,     # 10¢
-        5,      # 5¢
-        1       # 1¢
-    ]
-    names = [
-        "$100 bill",
-        "$50 bill",
-        "$20 bill",
-        "$10 bill",
-        "$5 bill",
-        "$1 bill",
-        "25¢ coin",
-        "10¢ coin",
-        "5¢ coin",
-        "1¢ coin"
-    ]
+    mid = len(arr) // 2
+    left = merge_sort(arr[:mid])
+    right = merge_sort(arr[mid:])
 
-    change = {}
-    for i in range(len(denominations)):
-        coin = denominations[i]
-        count = amount // coin
-        amount %= coin
-        if count > 0:
-            change[names[i]] = count
+    result = []
+    i = j = 0
 
-    return change
+    while i < len(left) and j < len(right):
+        if left[i] >= right[j]:  # Descending
+            result.append(left[i])
+            i += 1
+        else:
+            result.append(right[j])
+            j += 1
 
-amount_in_dollars = float(input("Enter the amount in dollars (e.g. 286.37): "))
-result = make_change(amount_in_dollars)
+    result.extend(left[i:])
+    result.extend(right[j:])
+    return result
 
-print(f"\nChange for ${amount_in_dollars}:")
-for denom, count in result.items():
-    print(f"{denom} : {count}")
+def greedy_change(amount, coins):
+    change = []
+    for coin in coins:
+        if amount >= coin:
+            count = amount // coin
+            amount %= coin
+            change.extend([coin] * count)
+    return change if amount == 0 else None
+
+try:
+    coins = list(map(int, input("Enter coin denominations (example: 1 5 2 100): ").split()))
+    
+    if not coins or any(c <= 0 for c in coins):
+        print("Invalid denominations.")
+    else:
+        amount = int(input("Enter the amount you want change for: "))
+        
+        if amount < 0:
+            print("Amount cannot be negative.")
+        elif amount == 0:
+            print("No change needed.")
+        else:
+            coins = merge_sort(coins)
+            
+            result = greedy_change(amount, coins)
+            print("Change:", *result) if result else print("Change is not possible.")
+except ValueError:
+    print("Invalid input.")
