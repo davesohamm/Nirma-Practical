@@ -38,7 +38,7 @@ def fractional_knapsack():
         w = float(input(f"Enter weight of item {i+1}: "))
 
         if v < 0 or w <= 0:
-            print(f"Skipping item {i+1} due to invalid input.")
+            print(f"Skipping item {i+1} !! BECAUSE IT'S - invalid input.")
             continue
 
         values.append(v)
@@ -52,7 +52,7 @@ def fractional_knapsack():
     if capacity <= 0:
         print("Knapsack capacity must be greater than zero.")
         return
-
+    
     ratio_list = []
     for i in range(len(values)):
         ratio = values[i] / weights[i]
