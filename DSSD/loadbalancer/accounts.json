@@ -1,0 +1,4 @@
+[
+  {"account_id": 1, "limit": 1000, "products": ["A", "B"]},
+  {"account_id": 2, "limit": 2000, "products": ["C"]}
+]
