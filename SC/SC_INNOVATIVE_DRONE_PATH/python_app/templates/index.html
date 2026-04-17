@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ title }} — Soft Computing</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <!-- Required so OrbitControls' internal `import ... from 'three'` resolves in the browser -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-header__brand">
+        <img
+          class="site-header__logo"
+          src="{{ url_for('static', filename='uorlogo.jpg') }}"
+          width="72"
+          height="72"
+          alt="Institute of Technology, Nirma University"
+        />
+        <div class="site-header__titles">
+          <h1>PSO-Based UAV Path Planning</h1>
+          <p class="site-header__tagline">
+            Compare <strong>PSO</strong> (particle swarm on continuous waypoints),
+            <strong>A*</strong>, and <strong>Dijkstra</strong> on a 2D grid. All pathfinding runs on a
+            <strong>Python</strong> Flask server; this page visualizes results, plays search expansion,
+            and shows Matplotlib comparison charts. Paths are forced to start at <strong>S</strong> and end at
+            <strong>E</strong>; polyline animation uses the true SVG path length (no truncated endpoint illusion).
+          </p>
+        </div>
+      </div>
+      <div class="site-header__meta">
+        <p>Soft Computing — 6CS268ME25</p>
+        <p>MTech Data Science • Institute of Technology, Nirma University</p>
+        <p class="site-header__guide">Faculty guide: <strong>Dr. Priyank Thakkar</strong></p>
+      </div>
+      <ul class="site-header__team" aria-label="Project team">
+        <li><span class="roll">25MCD004</span> Harsh Bhatt</li>
+        <li><span class="roll">25MCD005</span> Soham Dave</li>
+        <li><span class="roll">25MCD012</span> Nikhil Parejiya</li>
+        <li><span class="roll">25MCD015</span> Dev Patel</li>
+        <li><span class="roll">25MCD019</span> Raagi Raj</li>
+      </ul>
+    </header>
+
+    <main>
+      <div class="layout">
+        <div class="viz-column">
+          <div class="panel">
+            <h2>2D grid &amp; paths</h2>
+            <svg id="grid-svg" xmlns="http://www.w3.org/2000/svg">
+              <g id="layer-grid"></g>
+              <g id="layer-explore"></g>
+              <g id="layer-paths"></g>
+            </svg>
+            <div class="legend">
+              <span><span class="swatch" style="background: #38a169"></span> Start</span>
+              <span><span class="swatch" style="background: #e53e3e"></span> End</span>
+              <span><span class="swatch" style="background: #3d4f66"></span> Obstacle</span>
+              <span><span class="swatch" style="background: #38a169; height: 3px"></span> A*</span>
+              <span><span class="swatch" style="background: #3b82f6; height: 3px"></span> Dijkstra</span>
+              <span><span class="swatch" style="background: #d4a017; height: 3px"></span> PSO</span>
+            </div>
+            <p id="status" class="status"></p>
+          </div>
+
+          <div class="panel" id="results-panel" style="margin-top: 1rem; display: none">
+            <h2>Run results</h2>
+            <p class="results-run-meta" id="results-run-meta"></p>
+            <div class="table-wrap">
+              <table class="metrics-table" id="results-table-latest" aria-label="Latest run metrics">
+                <thead>
+                  <tr>
+                    <th>Algorithm</th>
+                    <th>Path found</th>
+                    <th>Distance / length</th>
+                    <th>Time (ms)</th>
+                    <th>Nodes / evals</th>
+                    <th>Points</th>
+                  </tr>
+                </thead>
+                <tbody id="results-tbody-latest"></tbody>
+              </table>
+            </div>
+            <h3 class="history-heading">Run history</h3>
+            <p class="analysis" style="margin-top: 0; margin-bottom: 0.5rem">
+              One row is appended every time you click <strong>Run all (Python)</strong>.
+            </p>
+            <div class="table-wrap table-wrap--scroll">
+              <table class="metrics-table metrics-table--compact" id="results-table-history" aria-label="Run history">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>When</th>
+                    <th>A* dist</th>
+                    <th>Dijkstra dist</th>
+                    <th>PSO length</th>
+                    <th>Fastest (ms)</th>
+                  </tr>
+                </thead>
+                <tbody id="results-tbody-history"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-top: 1rem">
+            <h2>3D view (obstacles + tubes)</h2>
+            <div id="view3d">
+              <p class="view3d-placeholder">Initializing WebGL…</p>
+            </div>
+            <p class="analysis" style="margin-top: 0.5rem">
+              Drag to orbit. Same grid: blocks are obstacles; colored tubes/lines are algorithm paths at cruise height.
+            </p>
+          </div>
+
+          <div class="panel" style="margin-top: 1rem">
+            <h2>Comparison charts (Matplotlib)</h2>
+            <img id="chart-img" alt="Comparison charts" style="display: none" />
+          </div>
+
+          <div class="panel" style="margin-top: 1rem">
+            <h2>Text analysis</h2>
+            <div id="analysis-text" class="analysis"></div>
+          </div>
+        </div>
+
+        <div class="panel controls">
+          <h2>Controls</h2>
+          <label>Grid size (n×n)<input type="number" id="gridSize" min="8" max="40" value="20" /></label>
+          <label>Obstacle density (0–1)<input type="number" id="density" min="0" max="0.6" step="0.05" value="0.25" /></label>
+
+          <div class="btn-row">
+            <button type="button" id="btnRandom" class="secondary">Random grid</button>
+            <button type="button" id="btnRun">Run all (Python)</button>
+          </div>
+
+          <label>Click mode</label>
+          <div class="btn-row mode-btns">
+            <button type="button" data-mode="obstacle" class="active">Obstacle</button>
+            <button type="button" data-mode="start">Start</button>
+            <button type="button" data-mode="end">End</button>
+          </div>
+
+          <h2 style="margin-top: 1rem">PSO parameters</h2>
+          <label>Particles<input type="number" id="psoParticles" min="5" max="80" value="30" /></label>
+          <label>Iterations<input type="number" id="psoIter" min="20" max="300" value="100" /></label>
+          <label>Waypoints<input type="number" id="psoWp" min="2" max="12" value="5" /></label>
+
+          <h2 style="margin-top: 1rem">Show paths</h2>
+          <div class="toggles">
+            <label><input type="checkbox" id="showAstar" checked /> A*</label>
+            <label><input type="checkbox" id="showDijkstra" checked /> Dijkstra</label>
+            <label><input type="checkbox" id="showPso" checked /> PSO</label>
+          </div>
+
+          <h2 style="margin-top: 1rem">Real-time search playback</h2>
+          <label>Algorithm</label>
+          <select id="exploreAlgo">
+            <option value="A*">A*</option>
+            <option value="Dijkstra">Dijkstra</option>
+          </select>
+          <div class="btn-row">
+            <button type="button" id="btnExplore" class="secondary">Play expansion</button>
+          </div>
+          <p class="analysis" style="margin-top: 0.5rem">
+            A* and Dijkstra stream the order cells were <em>expanded</em> (up to a cap) so you can visualize the
+            frontier growing. PSO is iterative in continuous space; use the line subplot for its convergence curve.
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        PSO-Based UAV Path Planning • Soft Computing (6CS268ME25) • Python/Flask • A* / Dijkstra / PSO • Institute of
+        Technology, Nirma University
+      </p>
+      <p>Faculty guide: Dr. Priyank Thakkar</p>
+      <p>
+        25MCD004 Harsh Bhatt, 25MCD005 Soham Dave, 25MCD012 Nikhil Parejiya, 25MCD015 Dev Patel, 25MCD019 Raagi Raj
+      </p>
+    </footer>
+
+    <script type="module">
+      const viewEl = document.getElementById("view3d");
+      try {
+        const { initThree, updateThreeScene, resizeThreeToContainer } = await import(
+          "{{ url_for('static', filename='js/scene3d.js') }}"
+        );
+        window.__updateThree = (g, s, e, res, show) => {
+          updateThreeScene(g, s, e, res, show);
+          requestAnimationFrame(() => resizeThreeToContainer && resizeThreeToContainer());
+        };
+        window.__resizeThree = resizeThreeToContainer;
+        if (viewEl) {
+          viewEl.querySelector(".view3d-placeholder")?.remove();
+          initThree(viewEl);
+        }
+      } catch (err) {
+        console.error("3D module failed:", err);
+        if (viewEl) {
+          viewEl.innerHTML =
+            '<p class="view3d-error">3D view could not load (check network for three.js or open the browser console). ' +
+            "Error: " +
+            String(err && err.message ? err.message : err) +
+            "</p>";
+        }
+        window.__updateThree = function () {};
+      }
+    </script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  </body>
+</html>

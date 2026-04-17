@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 
+  Design System for PSO-Based UAV Path Planning
+  Academic theme: Navy blue + Gold, clean and professional
+  All colors in HSL format
+*/
+
+@layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 220 40% 13%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 40% 13%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 40% 13%;
+
+    --primary: 220 60% 25%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 15% 90%;
+    --secondary-foreground: 220 40% 13%;
+
+    --muted: 220 15% 93%;
+    --muted-foreground: 220 10% 46%;
+
+    --accent: 43 75% 48%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 220 60% 25%;
+
+    --radius: 0.75rem;
+
+    /* Algorithm-specific colors */
+    --pso-color: 43 90% 55%;
+    --astar-color: 152 60% 40%;
+    --dijkstra-color: 210 80% 50%;
+
+    /* Grid colors */
+    --grid-free: 220 20% 95%;
+    --grid-obstacle: 220 30% 30%;
+    --grid-start: 152 70% 45%;
+    --grid-end: 0 75% 55%;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+  }
+}
+
+/* Custom utility classes for the project */
+@layer components {
+  .algo-badge-pso {
+    @apply px-3 py-1 rounded-full text-sm font-semibold;
+    background-color: hsl(var(--pso-color));
+    color: hsl(0 0% 10%);
+  }
+
+  .algo-badge-astar {
+    @apply px-3 py-1 rounded-full text-sm font-semibold;
+    background-color: hsl(var(--astar-color));
+    color: hsl(0 0% 100%);
+  }
+
+  .algo-badge-dijkstra {
+    @apply px-3 py-1 rounded-full text-sm font-semibold;
+    background-color: hsl(var(--dijkstra-color));
+    color: hsl(0 0% 100%);
+  }
+}
