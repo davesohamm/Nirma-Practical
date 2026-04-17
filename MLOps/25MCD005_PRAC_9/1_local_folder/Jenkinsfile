@@ -1,0 +1,30 @@
+pipeline {
+    agent any
+
+    stages {
+
+        stage('Show Workspace') {
+            steps {
+                bat 'cd'
+            }
+        }
+
+        stage('Build Images') {
+            steps {
+                bat 'docker-compose build'
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                bat 'docker run --rm demo1_jenkins_as_container_webapp pytest || echo "No tests found"'
+            }
+        }
+
+        stage('Deploy Containers') {
+            steps {
+                bat 'docker-compose up -d'
+            }
+        }
+    }
+}

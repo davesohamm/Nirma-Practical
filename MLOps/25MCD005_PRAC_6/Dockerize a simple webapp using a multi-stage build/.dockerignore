@@ -1,0 +1,7 @@
+.venv/
+.gitignore 
+.python-version
+pyproject.toml
+uv.lock
+README.md
+.dockerignore

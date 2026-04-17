@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Iris Classifier</title>
+</head>
+
+<body>
+    <h2>Iris Flower Classifier</h2>
+
+    <form action="/predict" method="post">
+        <input type="number" step="any" name="sl" placeholder="Sepal Length" required><br><br>
+        <input type="number" step="any" name="sw" placeholder="Sepal Width" required><br><br>
+        <input type="number" step="any" name="pl" placeholder="Petal Length" required><br><br>
+        <input type="number" step="any" name="pw" placeholder="Petal Width" required><br><br>
+
+        <button type="submit">Predict</button>
+    </form>
+
+    {% if prediction_text %}
+        <h3>{{ prediction_text }}</h3>
+    {% endif %}
+</body>
+</html>

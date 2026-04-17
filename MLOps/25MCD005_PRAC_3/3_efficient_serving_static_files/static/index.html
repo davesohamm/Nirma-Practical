@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<body>
+    <h2>Iris Predictor - Soham 🚀</h2>
+
+    <input type="number" id="pl" placeholder="Petal Length"><br>
+    <input type="number" id="pw" placeholder="Petal Width"><br>
+    <input type="number" id="sl" placeholder="Sepal Length"><br>
+    <input type="number" id="sw" placeholder="Sepal Width"><br>
+
+    <button onclick="predict()">Predict</button>
+
+    <p id="result"></p>
+
+    <script>
+        async function predict() {
+            const response = await fetch("/predict", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    petal_length: document.getElementById("pl").value,
+                    petal_width: document.getElementById("pw").value,
+                    sepal_length: document.getElementById("sl").value,
+                    sepal_width: document.getElementById("sw").value
+                })
+            });
+
+            const data = await response.json();
+            document.getElementById("result").innerText =
+                "Prediction: " + data.prediction;
+        }
+    </script>
+</body>
+</html>

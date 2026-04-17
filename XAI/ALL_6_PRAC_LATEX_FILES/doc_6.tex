@@ -1,0 +1,237 @@
+\documentclass[12pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\geometry{margin=2.5cm, top=3cm, bottom=2.5cm}
+
+% Header with logo
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\includegraphics[height=1.2cm]{uorlogo.jpg}}
+\fancyhead[R]{\small Explainable AI --- MTech Data Science}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Code listing style
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red!70!black},
+    language=Python
+}
+
+\begin{document}
+
+% Title Page
+\begin{titlepage}
+    \centering
+    \includegraphics[width=4cm]{uorlogo.jpg}\\[1cm]
+    {\Large \textbf{Nirma University}}\\[0.3cm]
+    {\large Institute of Technology}\\[0.3cm]
+    {\large Department of Computer Science \& Engineering}\\[1.5cm]
+    {\LARGE \textbf{Explainable AI}}\\[0.5cm]
+    {\Large \textbf{Lab 6: What-If Tool for Image Classification}}\\[1.5cm]
+    {\large \textbf{(Interactive Exploratory Explainability with CelebA Smile Detection)}}\\[2cm]
+    \begin{tabular}{ll}
+        \textbf{Student Name:} & Soham Dave \\[0.3cm]
+        \textbf{Roll Number:} & 25MCD005 \\[0.3cm]
+        \textbf{Program:} & MTech Data Science, Semester 2 \\[0.3cm]
+        \textbf{Subject:} & Explainable AI \\[0.3cm]
+        \textbf{Subject Guide:} & Dr. Nileshkumar Patel \\
+    \end{tabular}
+    \vfill
+    {\large \today}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% -------------------------------------------------------
+\section{Objective}
+The objective of this lab is to demonstrate the use of Google's \textbf{What-If Tool (WIT)} --- an interactive visual interface for exploring machine learning model behavior. The tool is applied to a \textbf{smile detection CNN} trained on a subset of the CelebA dataset, enabling analysis of model performance, fairness, and counterfactual reasoning.
+
+% -------------------------------------------------------
+\section{Dataset and Model}
+
+\subsection{CelebA Dataset}
+\begin{itemize}
+    \item \textbf{Full Dataset:} CelebA (CelebFaces Attributes Dataset) contains over 200,000 celebrity face images with 40 binary attribute annotations
+    \item \textbf{Subset Used:} A test subset of 250 images with associated metadata
+    \item \textbf{Task:} Binary classification --- Smiling vs.\ Not Smiling
+    \item \textbf{Image Resolution:} $78 \times 64 \times 3$ (resized face crops)
+    \item \textbf{Metadata Attributes:} Gender, Young/Not Young, smiling ground truth, attractiveness scores, and other facial attributes
+\end{itemize}
+
+\subsection{CNN Architecture}
+The pre-trained model is a custom Convolutional Neural Network built with TensorFlow/Keras:
+
+\begin{table}[H]
+    \centering
+    \caption{CNN architecture for smile detection}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Layer} & \textbf{Output Shape} & \textbf{Parameters} \\
+        \midrule
+        Input & $(78, 64, 3)$ & --- \\
+        Conv2D (32 filters, $5 \times 5$, ReLU) & $(74, 60, 32)$ & 2,432 \\
+        MaxPooling2D ($2 \times 2$) & $(37, 30, 32)$ & --- \\
+        Conv2D (64 filters, $5 \times 5$, ReLU) & $(33, 26, 64)$ & 51,264 \\
+        MaxPooling2D ($2 \times 2$) & $(16, 13, 64)$ & --- \\
+        Flatten & $(13,312)$ & --- \\
+        Dense (256, ReLU) & $(256)$ & 3,408,128 \\
+        Dense (2, Softmax) & $(2)$ & 514 \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:cnn_arch}
+\end{table}
+
+The model outputs softmax probabilities for two classes: \texttt{[Not Smiling, Smiling]}.
+
+% -------------------------------------------------------
+\section{Methodology}
+
+\subsection{Data Preparation}
+
+\subsubsection{Protobuf Compatibility}
+A patch was applied to the \texttt{google.protobuf} library to handle deprecation of the \texttt{including\_default\_value\_fields} parameter in newer versions. This ensures compatibility between the WIT widget and the current TensorFlow/protobuf ecosystem.
+
+\subsubsection{Data Conversion}
+The dataset was converted from CSV + image files to TensorFlow \texttt{tf.Example} protobuf format:
+\begin{enumerate}
+    \item Each image was loaded from disk, converted to PNG bytes, and stored in the \texttt{image/encoded} feature field
+    \item Metadata attributes (gender, age, smiling label, etc.) were stored as additional feature fields
+    \item This unified format enables the What-If Tool to access both image data and metadata for analysis
+\end{enumerate}
+
+\subsection{Custom Prediction Function}
+A custom prediction function was implemented to bridge the WIT widget with the Keras model:
+\begin{enumerate}
+    \item Extract \texttt{image/encoded} bytes from each \texttt{tf.Example}
+    \item Decode bytes to PIL Images using \texttt{BytesIO}
+    \item Convert images to numpy arrays and normalize to $[0.0, 1.0]$ range
+    \item Run batch inference through the CNN
+    \item Return softmax probabilities as a numpy array of shape $(n, 2)$
+\end{enumerate}
+
+\subsection{What-If Tool Configuration}
+\begin{enumerate}
+    \item Selected 250 test examples for visualization
+    \item Configured \texttt{WitConfigBuilder} with the custom prediction function
+    \item Set label vocabulary to \texttt{["Not Smiling", "Smiling"]}
+    \item Launched the interactive widget with a height of 700 pixels
+\end{enumerate}
+
+% -------------------------------------------------------
+\section{What-If Tool: Features and Analysis}
+
+\subsection{Overview of WIT Capabilities}
+The What-If Tool provides several interactive panels for model exploration:
+
+\begin{itemize}
+    \item \textbf{Datapoint Editor:} Inspect and modify individual test examples
+    \item \textbf{Performance Tab:} Analyze model accuracy across data slices
+    \item \textbf{Features Tab:} Visualize feature distributions and partial dependence
+    \item \textbf{Fairness Tab:} Compare model performance across demographic groups
+\end{itemize}
+
+\subsection{Performance Analysis}
+With the ground truth feature set to ``Smiling'':
+\begin{itemize}
+    \item The tool computes overall accuracy, precision, recall, and F1-score
+    \item Scatter plots of ``inference correct'' vs.\ other features reveal performance disparities
+    \item Binning by features like ``Young'' or ``Male'' shows whether accuracy varies across subgroups
+\end{itemize}
+
+\subsection{Counterfactual Analysis}
+The ``nearest counterfactual'' feature is one of WIT's most powerful capabilities:
+\begin{itemize}
+    \item For a selected image, the tool finds the most similar image (measured by average pixel color) that has a \textbf{different} prediction
+    \item This enables reasoning like: ``What minimal change would flip the model's decision from Smiling to Not Smiling?''
+    \item Counterfactual analysis helps identify potential failure modes and spurious correlations
+\end{itemize}
+
+\subsection{Fairness Exploration}
+\begin{itemize}
+    \item Compare model accuracy between Male and Female subgroups
+    \item Investigate whether the smile detector performs equally well on different age groups
+    \item Identify potential biases: Does the model associate certain non-smile attributes (e.g., attractiveness) with smiling?
+\end{itemize}
+
+\subsection{Important Considerations}
+\begin{itemize}
+    \item This model uses \textbf{only image pixels} as input. Therefore, partial dependence plots for metadata features (age, gender) are \textbf{flat} --- these features do not influence predictions
+    \item The metadata attributes are used exclusively for \textbf{slicing and analysis}, not for prediction
+    \item The WIT is an interactive tool --- visualizations are rendered at runtime and cannot be captured as static images
+\end{itemize}
+
+% -------------------------------------------------------
+\section{Discussion}
+
+\subsection{WIT vs.\ Algorithmic XAI Methods}
+\begin{table}[H]
+    \centering
+    \caption{Comparison of What-If Tool with other XAI methods}
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Property} & \textbf{What-If Tool} & \textbf{SHAP/LIME/Grad-CAM} \\
+        \midrule
+        Interaction type & Interactive visual & Programmatic \\
+        Explanation level & Dataset-wide + individual & Individual or global \\
+        Fairness analysis & Built-in & Requires additional code \\
+        Counterfactuals & Native support & Not standard \\
+        Model-agnostic & Yes & Varies \\
+        Technical expertise & Low (visual interface) & High (coding required) \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:wit_comparison}
+\end{table}
+
+\subsection{Advantages of Interactive Explainability}
+\begin{enumerate}
+    \item \textbf{Accessibility:} Non-technical stakeholders (product managers, compliance officers) can explore model behavior without coding
+    \item \textbf{Discovery:} Interactive exploration often surfaces unexpected patterns that pre-defined analyses miss
+    \item \textbf{Fairness auditing:} Built-in tools for demographic analysis facilitate responsible AI practices
+    \item \textbf{Counterfactual reasoning:} ``What would need to change for a different outcome?'' is a natural human reasoning pattern that WIT supports natively
+\end{enumerate}
+
+\subsection{Limitations}
+\begin{itemize}
+    \item WIT is primarily designed for Google's ecosystem (TensorFlow models, Colab/Jupyter)
+    \item Scalability is limited --- exploring millions of examples interactively is not feasible
+    \item The counterfactual metric (average pixel color) is simplistic; more sophisticated similarity measures could yield more meaningful counterfactuals
+\end{itemize}
+
+% -------------------------------------------------------
+\section{Conclusion}
+This lab demonstrated that the What-If Tool provides a complementary approach to model explainability:
+\begin{itemize}
+    \item It enables \textbf{interactive, visual exploration} of model behavior without writing code
+    \item It bridges the gap between technical model analysis and stakeholder communication
+    \item The counterfactual analysis and fairness auditing features are particularly valuable for deploying AI models responsibly
+    \item When combined with algorithmic methods (SHAP, LIME, Grad-CAM), WIT provides a comprehensive framework for understanding, debugging, and trusting machine learning models
+\end{itemize}
+
+The What-If Tool represents an important evolution in XAI --- moving from static explanations to dynamic, user-driven exploration of model behavior.
+
+\end{document}

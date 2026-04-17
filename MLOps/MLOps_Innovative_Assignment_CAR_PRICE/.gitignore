@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Virtual environment
+venv/
+.venv/
+
+# ML Models (large binary files)
+models/*.pkl
+models/*.joblib
+
+# MLflow local artifacts
+mlruns/
+mlartifacts/
+
+# CatBoost logs
+catboost_info/
+
+# Raw & processed data (large, regenerable)
+data/raw/
+data/processed/
+
+# Nginx logs/binaries
+nginx-1.28.2/logs/
+nginx-1.28.2/*.exe
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Secrets (keep .env.example, exclude actual .env)
+*.key
+
+# Temporary files
+*.tmp
+*.swp
+
+# IDE
+.vscode/
+.idea/
+.claude/

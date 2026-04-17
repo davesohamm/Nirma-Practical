@@ -1,0 +1,205 @@
+\documentclass[12pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\geometry{margin=2.5cm, top=3cm, bottom=2.5cm}
+
+% Header with logo
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\includegraphics[height=1.2cm]{uorlogo.jpg}}
+\fancyhead[R]{\small Explainable AI --- MTech Data Science}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Code listing style
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red!70!black},
+    language=Python
+}
+
+\begin{document}
+
+% Title Page
+\begin{titlepage}
+    \centering
+    \includegraphics[width=4cm]{uorlogo.jpg}\\[1cm]
+    {\Large \textbf{Nirma University}}\\[0.3cm]
+    {\large Institute of Technology}\\[0.3cm]
+    {\large Department of Computer Science \& Engineering}\\[1.5cm]
+    {\LARGE \textbf{Explainable AI}}\\[0.5cm]
+    {\Large \textbf{Lab 4: LIME Explanation for Random Forest Classifier}}\\[1.5cm]
+    {\large \textbf{(Local Interpretable Model-agnostic Explanations on Iris Dataset)}}\\[2cm]
+    \begin{tabular}{ll}
+        \textbf{Student Name:} & Soham Dave \\[0.3cm]
+        \textbf{Roll Number:} & 25MCD005 \\[0.3cm]
+        \textbf{Program:} & MTech Data Science, Semester 2 \\[0.3cm]
+        \textbf{Subject:} & Explainable AI \\[0.3cm]
+        \textbf{Subject Guide:} & Dr. Nileshkumar Patel \\
+    \end{tabular}
+    \vfill
+    {\large \today}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% -------------------------------------------------------
+\section{Objective}
+The objective of this lab is to demonstrate the use of \textbf{LIME (Local Interpretable Model-agnostic Explanations)} for explaining individual predictions of a \textbf{Random Forest classifier}. LIME provides local, per-prediction explanations for any black-box model, making it a powerful tool for post-hoc explainability.
+
+% -------------------------------------------------------
+\section{Dataset}
+
+\subsection{Iris Dataset}
+\begin{itemize}
+    \item \textbf{Source:} \texttt{sklearn.datasets.load\_iris}
+    \item \textbf{Task:} Multi-class classification (3 classes)
+    \item \textbf{Samples:} 150 (50 per class)
+    \item \textbf{Features (4):}
+    \begin{enumerate}
+        \item Sepal length (cm)
+        \item Sepal width (cm)
+        \item Petal length (cm)
+        \item Petal width (cm)
+    \end{enumerate}
+    \item \textbf{Target Classes:}
+    \begin{enumerate}[start=0]
+        \item Setosa
+        \item Versicolor
+        \item Virginica
+    \end{enumerate}
+    \item \textbf{Split:} 80/20 train-test (\texttt{random\_state=42})
+\end{itemize}
+
+% -------------------------------------------------------
+\section{Methodology}
+
+\subsection{Model Training}
+
+\subsubsection{Random Forest Classifier}
+A Random Forest is an ensemble of decision trees, each trained on a bootstrap sample with random feature subsets:
+\begin{equation}
+    \hat{y} = \text{mode}\{h_1(\mathbf{x}), h_2(\mathbf{x}), \ldots, h_B(\mathbf{x})\}
+\end{equation}
+
+The model was configured with $B = 100$ estimators and \texttt{random\_state=42}. It achieved \textbf{100\% accuracy} on the test set (30 samples), with perfect precision, recall, and F1-score for all three classes.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.55\textwidth]{images_4/output_1.png}
+    \caption{Confusion matrix for the Random Forest classifier on the Iris test set. All 30 test samples are correctly classified (perfect diagonal).}
+    \label{fig:confusion_matrix}
+\end{figure}
+
+\subsection{LIME Framework}
+
+\subsubsection{Theory}
+LIME explains individual predictions of any black-box model $f$ by fitting a simple, interpretable model $g$ locally around the instance of interest $\mathbf{x}$:
+
+\begin{equation}
+    \xi(\mathbf{x}) = \arg\min_{g \in G} \; \mathcal{L}(f, g, \pi_{\mathbf{x}}) + \Omega(g)
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $\mathcal{L}(f, g, \pi_{\mathbf{x}})$ measures how well $g$ approximates $f$ in the locality of $\mathbf{x}$, weighted by the proximity kernel $\pi_{\mathbf{x}}$
+    \item $\Omega(g)$ is a complexity penalty (e.g., number of non-zero coefficients)
+    \item $G$ is the family of interpretable models (typically sparse linear models)
+\end{itemize}
+
+\subsubsection{LIME Algorithm Steps}
+\begin{enumerate}
+    \item \textbf{Perturbation:} Generate $N$ perturbed samples around $\mathbf{x}$ by adding noise to feature values
+    \item \textbf{Prediction:} Query the black-box model $f$ on all perturbed samples
+    \item \textbf{Weighting:} Assign weights to perturbed samples based on proximity to $\mathbf{x}$ using an exponential kernel: $\pi_{\mathbf{x}}(\mathbf{z}) = \exp\left(-\frac{d(\mathbf{x}, \mathbf{z})^2}{\sigma^2}\right)$
+    \item \textbf{Fitting:} Train a weighted linear regression model on the perturbed samples
+    \item \textbf{Interpretation:} The linear model's coefficients serve as local feature importance scores
+\end{enumerate}
+
+\subsubsection{Implementation}
+\begin{enumerate}
+    \item Initialized \texttt{LimeTabularExplainer} with training data, feature names, and class names
+    \item For each of the 3 classes, selected 5 test samples belonging to that class
+    \item Generated LIME explanations for each sample using \texttt{explain\_instance()}
+    \item Accumulated feature importance scores across the 5 samples per class
+    \item Visualized per-class average feature importance as horizontal bar charts
+\end{enumerate}
+
+% -------------------------------------------------------
+\section{Results and Analysis}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{images_4/output_2.png}
+    \caption{LIME feature importance for class Setosa. Petal length and petal width dominate, as Setosa flowers have distinctly small petals.}
+    \label{fig:lime_setosa}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{images_4/output_3.png}
+    \caption{LIME feature importance for class Versicolor. All four features contribute, with a more balanced distribution reflecting Versicolor's intermediate position between Setosa and Virginica.}
+    \label{fig:lime_versicolor}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{images_4/output_4.png}
+    \caption{LIME feature importance for class Virginica. Similar to Setosa, petal measurements dominate, but in the opposite direction --- Virginica has the largest petals.}
+    \label{fig:lime_virginica}
+\end{figure}
+
+\subsection{Interpretation}
+
+\begin{itemize}
+    \item \textbf{Setosa:} LIME reveals that petal length and petal width are the dominant features. Setosa flowers have distinctly small petals ($< 2$ cm length), making these features highly discriminative. The model barely uses sepal measurements for Setosa predictions.
+    
+    \item \textbf{Versicolor:} The feature importance is more distributed across all four features. This is because Versicolor occupies a ``middle ground'' between Setosa and Virginica. LIME shows that no single feature is sufficient --- the model uses a combination of all measurements to identify Versicolor.
+    
+    \item \textbf{Virginica:} Again, petal features dominate, but with the opposite sign compared to Setosa. Virginica flowers have the largest petals among the three species, making petal length and width the primary distinguishing characteristics.
+\end{itemize}
+
+\subsection{Key Observations}
+\begin{enumerate}
+    \item \textbf{Model-agnostic:} LIME treats the Random Forest as a black box and explains it through local linear approximations. The same technique works for neural networks, SVMs, or any classifier.
+    \item \textbf{Local fidelity:} Each explanation is valid only in the neighborhood of the explained instance. Different instances may have different explanations, reflecting the model's adaptive decision logic.
+    \item \textbf{Consistency with domain knowledge:} LIME's emphasis on petal features aligns with botanical knowledge --- petal morphology is the primary taxonomic criterion for differentiating Iris species.
+\end{enumerate}
+
+% -------------------------------------------------------
+\section{Conclusion}
+This lab demonstrated that LIME successfully explains individual predictions of a black-box Random Forest:
+\begin{itemize}
+    \item LIME provides transparent, per-prediction explanations without requiring access to model internals
+    \item The explanations are intuitive and consistent with domain knowledge
+    \item By aggregating LIME explanations across multiple samples, we can derive class-level interpretations
+    \item LIME bridges the gap between model accuracy (100\% in this case) and model interpretability
+\end{itemize}
+
+LIME is particularly valuable in high-stakes applications where practitioners need to understand \emph{why} a specific prediction was made, not just \emph{what} was predicted.
+
+\end{document}

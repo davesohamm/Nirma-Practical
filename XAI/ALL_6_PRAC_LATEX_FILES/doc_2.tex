@@ -1,0 +1,210 @@
+\documentclass[12pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\geometry{margin=2.5cm, top=3cm, bottom=2.5cm}
+
+% Header with logo
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\includegraphics[height=1.2cm]{uorlogo.jpg}}
+\fancyhead[R]{\small Explainable AI --- MTech Data Science}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Code listing style
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red!70!black},
+    language=Python
+}
+
+\begin{document}
+
+% Title Page
+\begin{titlepage}
+    \centering
+    \includegraphics[width=4cm]{uorlogo.jpg}\\[1cm]
+    {\Large \textbf{Nirma University}}\\[0.3cm]
+    {\large Institute of Technology}\\[0.3cm]
+    {\large Department of Computer Science \& Engineering}\\[1.5cm]
+    {\LARGE \textbf{Explainable AI}}\\[0.5cm]
+    {\Large \textbf{Lab 2: Explainability in Logistic Regression and SVM}}\\[2cm]
+    \begin{tabular}{ll}
+        \textbf{Student Name:} & Soham Dave \\[0.3cm]
+        \textbf{Roll Number:} & 25MCD005 \\[0.3cm]
+        \textbf{Program:} & MTech Data Science, Semester 2 \\[0.3cm]
+        \textbf{Subject:} & Explainable AI \\[0.3cm]
+        \textbf{Subject Guide:} & Dr. Nileshkumar Patel \\
+    \end{tabular}
+    \vfill
+    {\large \today}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% -------------------------------------------------------
+\section{Objective}
+The objective of this lab is to demonstrate explainability in two widely-used classification models:
+\begin{enumerate}
+    \item \textbf{Logistic Regression} --- interpreting coefficients as log-odds contributions
+    \item \textbf{Support Vector Machine (SVM)} --- visualizing the decision boundary, margin, and support vectors
+\end{enumerate}
+
+Both models are \textbf{intrinsically interpretable} when used with appropriate kernels and visualizations.
+
+% -------------------------------------------------------
+\section{Datasets}
+
+\subsection{Synthetic Customer Churn Dataset}
+\begin{itemize}
+    \item \textbf{Task:} Binary classification (churn vs.\ no churn)
+    \item \textbf{Samples:} 1,000 (generated using \texttt{make\_classification})
+    \item \textbf{Features (5):} \texttt{feature\_1} through \texttt{feature\_5}, all informative with no redundant features
+    \item \textbf{Target:} \texttt{churn} (0 = no churn, 1 = churn)
+    \item \textbf{Generation Parameters:} \texttt{n\_informative=5}, \texttt{n\_redundant=0}, \texttt{random\_state=42}
+\end{itemize}
+
+\subsection{Iris Dataset (Binary Subset)}
+\begin{itemize}
+    \item \textbf{Task:} Binary classification (Setosa vs.\ Versicolor)
+    \item \textbf{Source:} \texttt{sklearn.datasets.load\_iris}, filtered to classes 0 and 1
+    \item \textbf{Samples:} 100 (50 per class)
+    \item \textbf{Features Used (2):} Sepal length and petal length (selected for 2D visualization)
+    \item \textbf{Target:} Species (0 = Setosa, 1 = Versicolor)
+\end{itemize}
+
+% -------------------------------------------------------
+\section{Methodology}
+
+\subsection{Part 1: Logistic Regression}
+
+\subsubsection{Model Description}
+Logistic Regression models the probability of the positive class using the logistic (sigmoid) function:
+\begin{equation}
+    P(y=1 \mid \mathbf{x}) = \sigma(\beta_0 + \beta_1 x_1 + \cdots + \beta_p x_p) = \frac{1}{1 + e^{-(\beta_0 + \boldsymbol{\beta}^T \mathbf{x})}}
+\end{equation}
+
+The coefficients $\beta_j$ represent the change in \textbf{log-odds} for a one-unit increase in feature $x_j$:
+\begin{equation}
+    \log\left(\frac{P(y=1)}{P(y=0)}\right) = \beta_0 + \sum_{j=1}^{p} \beta_j x_j
+\end{equation}
+
+\subsubsection{Implementation Steps}
+\begin{enumerate}
+    \item Generated synthetic binary classification data with 5 informative features
+    \item Trained \texttt{LogisticRegression} using the \texttt{liblinear} solver
+    \item Extracted and printed model coefficients and intercept
+    \item Plotted absolute coefficient magnitudes as a bar chart to visualize feature importance
+\end{enumerate}
+
+\subsubsection{Explainability Analysis}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{images_2/output_1.png}
+    \caption{Logistic Regression coefficient magnitudes for the customer churn prediction model. Feature 2 has the strongest influence on churn prediction.}
+    \label{fig:lr_coefficients}
+\end{figure}
+
+The trained model yielded the following coefficients:
+\begin{center}
+\begin{tabular}{lcc}
+    \toprule
+    \textbf{Feature} & \textbf{Coefficient} & \textbf{Effect on Churn} \\
+    \midrule
+    feature\_2 & $+0.8422$ & Increases churn probability \\
+    feature\_1 & $-0.7461$ & Decreases churn probability \\
+    feature\_5 & $-0.7187$ & Decreases churn probability \\
+    feature\_3 & $+0.6936$ & Increases churn probability \\
+    feature\_4 & $-0.3051$ & Decreases churn probability \\
+    \midrule
+    Intercept & $+0.7327$ & Baseline log-odds \\
+    \bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Interpretation:} A positive coefficient means that increasing the feature value increases the log-odds of churning. For example, a one-unit increase in \texttt{feature\_2} increases the log-odds of churn by 0.8422, which translates to an odds ratio of $e^{0.8422} \approx 2.32$ --- meaning the odds of churn more than double.
+
+The positive intercept (0.7327) indicates that even without considering any features, there is an inherent bias toward churn in this dataset.
+
+% -------------------------------------------------------
+\subsection{Part 2: Support Vector Machine}
+
+\subsubsection{Model Description}
+A linear SVM finds the hyperplane that maximizes the margin between two classes:
+\begin{equation}
+    f(\mathbf{x}) = \mathbf{w}^T \mathbf{x} + b
+\end{equation}
+
+where $\mathbf{w}$ is the weight vector (normal to the hyperplane) and $b$ is the bias term. The decision boundary is defined by $f(\mathbf{x}) = 0$, and the margin boundaries are $f(\mathbf{x}) = \pm 1$.
+
+The optimization objective is:
+\begin{equation}
+    \min_{\mathbf{w}, b} \frac{1}{2}\|\mathbf{w}\|^2 \quad \text{subject to} \quad y_i(\mathbf{w}^T \mathbf{x}_i + b) \geq 1, \quad \forall i
+\end{equation}
+
+\textbf{Support vectors} are the data points that lie exactly on the margin boundaries ($y_i f(\mathbf{x}_i) = 1$).
+
+\subsubsection{Implementation Steps}
+\begin{enumerate}
+    \item Loaded the Iris dataset and filtered to two classes (Setosa and Versicolor)
+    \item Selected two features (sepal length, petal length) for 2D visualization
+    \item Trained \texttt{SVC(kernel='linear')} from scikit-learn
+    \item Extracted the weight vector $\mathbf{w}$ and intercept $b$
+    \item Computed the decision boundary line: $x_2 = -\frac{w_1}{w_2} x_1 - \frac{b}{w_2}$
+    \item Computed margin lines at $\pm \frac{1}{w_2}$ offset from the decision boundary
+    \item Plotted data points (colored by class), support vectors (circled), decision boundary, and margins
+\end{enumerate}
+
+\subsubsection{Explainability Analysis}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images_2/output_2.png}
+    \caption{SVM decision boundary visualization. Data points are colored by class (Setosa vs.\ Versicolor). Support vectors (circled) define the margin. The dashed lines indicate the margin boundaries.}
+    \label{fig:svm_boundary}
+\end{figure}
+
+\textbf{Interpretation:}
+\begin{itemize}
+    \item The \textbf{decision boundary} (solid line) separates Setosa from Versicolor flowers. Points above the line are classified as one class, points below as the other.
+    \item The \textbf{support vectors} (circled points) are the critical samples that define the boundary. These are the ``hardest to classify'' examples --- removing any support vector would shift the boundary.
+    \item The \textbf{margin width} indicates model confidence. A wider margin means the two classes are well-separated. In this binary Iris problem, the classes are highly separable, resulting in a clear wide margin.
+    \item The \textbf{weight vector} $\mathbf{w}$ reveals that petal length has a larger weight than sepal length, indicating it is the more discriminative feature. This aligns with botanical knowledge --- Setosa flowers have distinctly shorter petals.
+\end{itemize}
+
+% -------------------------------------------------------
+\section{Conclusion}
+This lab demonstrated that both Logistic Regression and linear SVMs are inherently interpretable:
+\begin{itemize}
+    \item \textbf{Logistic Regression} coefficients directly quantify each feature's contribution to the prediction in terms of log-odds. This makes it easy to identify the most influential factors and their direction of effect.
+    \item \textbf{Linear SVM} provides geometric interpretability through its decision boundary, support vectors, and margin. The weight vector reveals feature importance, and the support vectors identify the most informative training examples.
+\end{itemize}
+
+Both methods are widely used in domains requiring transparent decision-making, such as healthcare and finance, where practitioners need to understand and justify model predictions.
+
+\end{document}

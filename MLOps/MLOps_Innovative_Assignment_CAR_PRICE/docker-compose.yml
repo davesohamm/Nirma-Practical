@@ -1,0 +1,134 @@
+# ─── Docker Compose — Car Price MLOps Architecture ────────────────────────────
+# Services: mongodb, api (FastAPI), ui (Streamlit), mlflow, prometheus, grafana
+# Network: Custom bridge (mlops_network)
+# Volumes: mongo_data, mlflow_data
+
+version: "3.8"
+
+services:
+  # ─── MongoDB ─────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7.0
+    container_name: car_price_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - mlops_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ─── FastAPI Backend ─────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    container_name: car_price_api
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URL=${MONGO_URL}
+      - MONGO_DB_NAME=${MONGO_DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+      - JWT_EXPIRY_MINUTES=${JWT_EXPIRY_MINUTES}
+      - MODEL_VERSION=${MODEL_VERSION}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - mlops_network
+    restart: unless-stopped
+
+  # ─── Streamlit UI ────────────────────────────────────────────────────────
+  ui:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.ui
+    container_name: car_price_ui
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=${API_URL}
+    depends_on:
+      - api
+    networks:
+      - mlops_network
+    restart: unless-stopped
+
+  # ─── MLflow Tracking Server ──────────────────────────────────────────────
+  mlflow:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.mlflow
+    container_name: car_price_mlflow
+    ports:
+      - "5000:5000"
+    environment:
+      - MLFLOW_ALLOWED_HOSTS=*
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow.db
+      --default-artifact-root /mlflow/artifacts
+      --allowed-hosts *
+    volumes:
+      - mlflow_data:/mlflow
+    networks:
+      - mlops_network
+    restart: unless-stopped
+
+  # ─── Prometheus ──────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: car_price_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - api
+    networks:
+      - mlops_network
+    restart: unless-stopped
+
+  # ─── Grafana ─────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: car_price_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - mlops_network
+    restart: unless-stopped
+
+# ─── Named Volumes ──────────────────────────────────────────────────────────
+volumes:
+  mongo_data:
+    name: car_price_mongo_data
+  mlflow_data:
+    name: car_price_mlflow_data
+
+# ─── Custom Network ────────────────────────────────────────────────────────
+networks:
+  mlops_network:
+    name: car_price_mlops_network
+    driver: bridge

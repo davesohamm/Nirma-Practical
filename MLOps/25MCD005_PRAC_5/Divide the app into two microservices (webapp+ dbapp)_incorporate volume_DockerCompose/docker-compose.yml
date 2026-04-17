@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+
+  mongodb:
+    image: mongo:7
+    container_name: mongo_db_service_v7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  dbapp:
+    build: ./dbapp
+    container_name: dbapp_v7
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/
+
+  webapp:
+    build: ./webapp
+    container_name: webapp_v7
+    ports:
+      - "5004:5004"
+    depends_on:
+      - dbapp
+
+volumes:
+  mongo_data:

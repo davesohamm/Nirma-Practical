@@ -1,0 +1,336 @@
+
+END-TO-END MLOps WORKPLAN
+Used Car Price Prediction Application
+From Raw Data to Production-Ready Deployment
+
+1. Project Overview
+
+This document provides a comprehensive, step-by-step workplan to build and deploy a Used Car Price Prediction application following the complete MLOps lifecycle. The project incorporates data engineering, machine learning model development, API serving, containerization, orchestration, monitoring, and automated retraining pipelines.
+
+1.1 Objective
+Build a production-grade ML application that:
+Accepts user input (car attributes such as make, model, year, mileage, fuel type, etc.)
+Processes the input through a trained ML model
+Returns an accurate used car price prediction
+Is scalable, monitored, and automatically retrained on new data
+
+1.2 Architecture Summary
+The project is organized into 13 sequential phases covering the complete MLOps lifecycle:
+
+
+2. Dataset Selection
+
+The foundation of this project is a high-quality used car dataset. We will primarily use the Vehicle Dataset from Kaggle, which is one of the most comprehensive and widely used datasets for this domain.
+
+2.1 Primary Dataset
+
+
+
+
+
+2.2 Dataset Features
+The dataset contains the following key columns:
+
+
+2.3 Alternative Datasets
+The following datasets can be used as supplements or alternatives:
+Used Cars Dataset (cars.com scrape) — Kaggle: includes US market data with additional features
+UCI ML Repository: Automobile Dataset — classic dataset suitable for benchmarking
+CarGurus Public Dataset — contains dealer pricing and market trends
+craigslist Used Cars Dataset — 3M+ records, great for scale testing
+
+2.4 Dataset Download Instructions
+Use the following steps to download the dataset programmatically:
+pip install kaggle
+kaggle datasets download -d nehalbirla/vehicle-dataset-from-cardekho
+unzip vehicle-dataset-from-cardekho.zip -d data/raw/
+
+
+Step 1.1 — Install and Configure Airflow
+Create a Python virtual environment and install Apache Airflow
+pip install apache-airflow==2.7.0
+airflow db init
+airflow webserver --port 8080 &
+airflow scheduler &
+
+Step 1.2 — Create the DAG (Directed Acyclic Graph)
+Create a DAG file at dags/car_price_pipeline.py with the following tasks:
+Task 1: download_data — Download dataset from Kaggle or local source
+Task 2: validate_data — Check schema, row counts, and column integrity
+Task 3: preprocess_data — Run cleaning and feature engineering scripts
+Task 4: trigger_training — Kick off the model training pipeline
+
+Step 1.3 — Schedule Configuration
+
+
+
+Step 2.1 — Missing Value Treatment
+Identify columns with > 30% missing values — consider dropping them
+Numerical columns: impute using median (robust to outliers)
+Categorical columns: impute using mode or 'Unknown' placeholder
+Use pandas .isnull().sum() to audit missing values per column
+
+Step 2.2 — Outlier Detection and Removal
+Apply IQR (Interquartile Range) method for numerical columns
+Remove records where selling_price < 10,000 or > 10,000,000 INR
+Remove records where km_driven > 500,000
+Validate year: must be between 1990 and current year
+
+Step 2.3 — Data Type Corrections
+Parse torque column: extract numeric value from strings like '113Nm @ 1500rpm'
+Strip units from mileage: convert '23.4 kmpl' to float 23.4
+Strip units from engine: convert '1197 CC' to integer 1197
+Strip units from max_power: convert '82 bhp' to float 82.0
+
+Step 2.4 — Deduplication
+Drop exact duplicate rows using df.drop_duplicates()
+Flag near-duplicate entries with same name, year, and km_driven
+
+
+Step 3.1 — Derive New Features
+car_age: Calculate as current_year - year (e.g., 2025 - 2018 = 7)
+brand: Extract the first word from name column (e.g., 'Maruti' from 'Maruti Swift')
+model: Extract second word from name column
+price_per_km: selling_price / km_driven (market efficiency metric)
+is_first_owner: Binary flag if owner == 'First Owner'
+
+Step 3.2 — Encoding Categorical Variables
+Label Encoding: Apply to ordinal columns (owner, seller_type)
+One-Hot Encoding: Apply to nominal columns (fuel, transmission)
+Target Encoding: Apply to high-cardinality column (brand, model)
+
+Step 3.3 — Feature Scaling
+Apply StandardScaler to: km_driven, engine, max_power, mileage
+Save the scaler as scaler.pkl for use during inference
+
+Step 3.4 — Feature Selection
+Use correlation matrix to remove highly correlated features (threshold > 0.90)
+Apply SHAP values post-training to validate feature importance
+Final selected features: car_age, km_driven, fuel, transmission, engine, max_power, seats, brand, seller_type, owner
+
+
+Step 4.1 — Train-Test Split
+Split data: 80% training, 20% testing
+Use stratified split on fuel type to ensure balanced representation
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+Step 4.2 — Candidate Models
+Train and evaluate the following models:
+
+Step 4.3 — MLflow Experiment Tracking
+Initialize MLflow tracking server: mlflow server --port 5000
+Log parameters: n_estimators, max_depth, learning_rate, etc.
+Log metrics: RMSE, MAE, R², MAPE for each run
+Log artifacts: trained model, confusion matrix, feature importance plots
+Set experiment name: mlflow.set_experiment('car_price_prediction')
+
+Step 4.4 — Hyperparameter Tuning
+Use Optuna or GridSearchCV for hyperparameter optimization
+Optimize XGBoost: n_estimators=500, max_depth=6, learning_rate=0.05
+Apply k-Fold Cross-Validation (k=5) to prevent overfitting
+
+Step 4.5 — Model Evaluation Metrics
+
+Step 4.6 — Save the Final Model as .pkl
+After selecting the best performing model, serialize it using joblib:
+import joblib
+joblib.dump(best_model, 'models/car_price_model.pkl')
+joblib.dump(scaler, 'models/scaler.pkl')
+joblib.dump(encoder, 'models/encoder.pkl')
+Also log the .pkl artifacts to MLflow:
+mlflow.log_artifact('models/car_price_model.pkl')
+
+
+Step 5.1 — Register Model in MLflow
+Go to MLflow UI at http://localhost:5000
+Select the best run and click 'Register Model'
+Assign name: car-price-predictor and version: v1.0
+Transition model stage: Staging → Production after validation
+
+Step 5.2 — Model Metadata
+Document training date, dataset version, and metrics in MLflow tags
+Store input schema and expected feature list as model signature
+Create a model card documenting: purpose, limitations, and performance
+
+
+Step 6.1 — Project Structure
+car_price_api/
+  main.py           # FastAPI app entry point
+  models/           # .pkl files directory
+  schemas.py        # Pydantic input/output schemas
+  predictor.py      # Model loading and inference logic
+  requirements.txt
+
+Step 6.2 — Input Schema (Pydantic)
+Define the input model with validation:
+class CarInput(BaseModel):
+    name: str
+    year: int
+    km_driven: int
+    fuel: str          # Petrol, Diesel, CNG
+    transmission: str  # Manual, Automatic
+    owner: str
+    mileage: float
+    engine: float
+    max_power: float
+    seats: int
+
+Step 6.3 — Prediction Endpoint
+@app.post('/predict')
+def predict(car: CarInput):
+    features = preprocess(car)
+    price = model.predict(features)[0]
+    return {'predicted_price': price}
+
+Step 6.4 — Additional Endpoints
+GET /health — Returns API status and model version
+GET /model-info — Returns model metadata and training metrics
+POST /predict/batch — Accepts list of cars for bulk prediction
+
+
+Step 7.1 — Streamlit Application Features
+Sidebar with input form: car attributes (dropdowns, sliders, text inputs)
+Predict button: calls FastAPI /predict endpoint
+Price display: shows predicted price with confidence range
+Feature importance chart: bar chart showing top contributing features
+Market analysis tab: price distribution by brand, fuel type, year
+
+Step 7.2 — Running the UI
+streamlit run app.py --server.port 8501
+
+Step 7.3 — React Alternative (Optional)
+Build a React frontend with form components and Axios for API calls
+Use Chart.js or Recharts for analytics visualization
+Deploy as static files served via Nginx in the Docker container
+
+
+Step 8.1 — Dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+EXPOSE 8000 8501
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+Step 8.2 — Docker Compose
+Use docker-compose.yml to orchestrate local services:
+Service: api — FastAPI on port 8000
+Service: ui — Streamlit on port 8501
+Service: mlflow — MLflow tracking server on port 5000
+Service: prometheus — Metrics scraping on port 9090
+Service: grafana — Dashboards on port 3000
+
+Step 8.3 — Build and Run
+docker build -t car-price-app:v1.0 .
+docker-compose up -d
+
+
+Step 9.1 — Required Kubernetes Objects
+Deployment: car-price-api with 3 replicas, resource limits
+Service: ClusterIP for internal communication, LoadBalancer for external
+ConfigMap: environment variables (model path, API settings)
+HorizontalPodAutoscaler (HPA): scale based on CPU > 70%
+Ingress: route external traffic to appropriate services
+
+Step 9.2 — Deployment Commands
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/hpa.yaml
+kubectl get pods -n car-price-app
+
+
+Step 10.1 — Expose Metrics from FastAPI
+Install prometheus-fastapi-instrumentator library
+Expose /metrics endpoint in the FastAPI app
+Track: request count, response latency, prediction distribution
+
+Step 10.2 — Custom Model Metrics
+Prediction drift: monitor if predicted price distribution shifts over time
+Feature drift: track changes in input feature distributions
+Error rate: log when predictions fall outside expected range
+
+Step 10.3 — Grafana Dashboards
+Dashboard 1: API Performance — RPS, latency (P50, P95, P99), error rates
+Dashboard 2: Model Health — prediction distribution, feature drift alerts
+Dashboard 3: Infrastructure — CPU, memory, pod count, Kubernetes events
+
+
+Step 11.1 — Pipeline Stages
+Trigger: On every push to main or pull request
+Lint & Format: Run flake8, black, isort checks
+Unit Tests: Run pytest with coverage report
+Integration Tests: Test API endpoints with sample payloads
+Docker Build: Build and tag container image
+Push to Registry: Push to Docker Hub or ECR
+Deploy: Apply kubectl manifests to staging cluster
+Smoke Tests: Validate /health and /predict endpoints
+
+Step 11.2 — Workflow File Location
+.github/workflows/ci-cd.yml
+
+
+Step 12.1 — Retraining Triggers
+Scheduled: Airflow DAG runs weekly retraining every Sunday at 2 AM
+Drift-based: Trigger if prediction drift score > 0.15 (monitored via Grafana)
+Manual: GitHub Actions workflow_dispatch for on-demand retraining
+
+Step 12.2 — Retraining Workflow
+Download latest data from source API or data lake
+Append to existing dataset and validate quality
+Retrain model with same pipeline (feature eng + training code)
+Compare new model metrics against production model in MLflow
+If new model improves RMSE by > 2%: promote to production
+Update Docker image tag and trigger Kubernetes rollout
+Monitor post-deployment for 24 hours before full rollout
+
+3. Full Project Directory Structure
+
+car-price-mlops/
+  data/
+    raw/                  # Original downloaded datasets
+    processed/            # Cleaned and feature-engineered data
+  dags/
+    car_price_pipeline.py # Airflow DAG definition
+  models/
+    car_price_model.pkl   # Serialized trained model
+    scaler.pkl            # Feature scaler
+    encoder.pkl           # Categorical encoder
+  notebooks/
+    01_eda.ipynb          # Exploratory Data Analysis
+    02_feature_eng.ipynb  # Feature Engineering experiments
+    03_model_training.ipynb
+  api/
+    main.py               # FastAPI application
+    schemas.py            # Pydantic models
+    predictor.py          # Inference logic
+  ui/
+    app.py                # Streamlit dashboard
+  k8s/
+    deployment.yaml
+    service.yaml
+    hpa.yaml
+  monitoring/
+    prometheus.yml
+    grafana_dashboard.json
+  .github/
+    workflows/ci-cd.yml
+  Dockerfile
+  docker-compose.yml
+  requirements.txt
+  README.md
+
+4. Technology Stack Summary
+
+
+5. Immediate First Step — Build the Model
+
+The very first step of this project is to build, train, and save the ML model as a .pkl file. Follow this sequence:
+
+5.1 Quickstart: Model in 6 Steps
+
+
+Once the .pkl file is created and validated, proceed sequentially through Phases 1-12 as defined in this document.
+
+This document covers the complete MLOps lifecycle for the Used Car Price Prediction App.
+Start with Phase 04 (Model Training) and work outward to build the full production system.

@@ -1,0 +1,254 @@
+\documentclass[12pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\geometry{margin=2.5cm, top=3cm, bottom=2.5cm}
+
+% Header with logo
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\includegraphics[height=1.2cm]{uorlogo.jpg}}
+\fancyhead[R]{\small Explainable AI --- MTech Data Science}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Code listing style
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red!70!black},
+    language=Python
+}
+
+\begin{document}
+
+% Title Page
+\begin{titlepage}
+    \centering
+    \includegraphics[width=4cm]{uorlogo.jpg}\\[1cm]
+    {\Large \textbf{Nirma University}}\\[0.3cm]
+    {\large Institute of Technology}\\[0.3cm]
+    {\large Department of Computer Science \& Engineering}\\[1.5cm]
+    {\LARGE \textbf{Explainable AI}}\\[0.5cm]
+    {\Large \textbf{Lab 1: Explainability in Intrinsically Explainable Models}}\\[1.5cm]
+    {\large \textbf{(Regression, Decision Trees, Random Forest + SHAP)}}\\[2cm]
+    \begin{tabular}{ll}
+        \textbf{Student Name:} & Soham Dave \\[0.3cm]
+        \textbf{Roll Number:} & 25MCD005 \\[0.3cm]
+        \textbf{Program:} & MTech Data Science, Semester 2 \\[0.3cm]
+        \textbf{Subject:} & Explainable AI \\[0.3cm]
+        \textbf{Subject Guide:} & Dr. Nileshkumar Patel \\
+    \end{tabular}
+    \vfill
+    {\large \today}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% -------------------------------------------------------
+\section{Objective}
+The objective of this lab is to demonstrate explainability in \textbf{intrinsically interpretable} machine learning models. Three models are explored:
+\begin{enumerate}
+    \item \textbf{Multiple Linear Regression} --- interpreting coefficients as feature importance
+    \item \textbf{Decision Tree Classifier} --- visualizing tree structure and Gini importance
+    \item \textbf{Random Forest Classifier with SHAP} --- using SHapley Additive exPlanations for post-hoc explainability
+\end{enumerate}
+
+% -------------------------------------------------------
+\section{Datasets}
+
+\subsection{Cellphone Dataset}
+\begin{itemize}
+    \item \textbf{Task:} Regression (predicting cellphone price)
+    \item \textbf{Samples:} 161 entries
+    \item \textbf{Features (12):} Sale, weight, resolution, ppi, cpu core, cpu freq, internal mem, ram, RearCam, Front\_Cam, battery, thickness
+    \item \textbf{Target:} Price (integer)
+    \item \textbf{Preprocessing:} Standard scaling (zero mean, unit variance) applied to all features
+\end{itemize}
+
+\subsection{MBA Admissions Dataset}
+\begin{itemize}
+    \item \textbf{Task:} Classification (predicting admission decision)
+    \item \textbf{Samples:} 1,000 (with valid admission labels out of 6,194 total)
+    \item \textbf{Features (34 after encoding):} gpa, gmat, work\_exp, gender, international, major, race, work\_industry (one-hot encoded)
+    \item \textbf{Target:} Admission decision (categorical)
+    \item \textbf{Preprocessing:} Rows with missing \texttt{admission} dropped; categorical features one-hot encoded
+\end{itemize}
+
+\subsection{Wine Quality Dataset}
+\begin{itemize}
+    \item \textbf{Task:} Multi-class classification (predicting wine quality score)
+    \item \textbf{Samples:} 1,599 entries
+    \item \textbf{Features (11):} Fixed acidity, volatile acidity, citric acid, residual sugar, chlorides, free/total sulfur dioxide, density, pH, sulphates, alcohol
+    \item \textbf{Target:} Quality (integer score)
+    \item \textbf{Split:} 80/20 train-test split
+\end{itemize}
+
+% -------------------------------------------------------
+\section{Methodology}
+
+\subsection{Part 1: Multiple Linear Regression}
+
+\subsubsection{Model Description}
+Multiple Linear Regression models the target variable as a weighted linear combination of input features:
+\begin{equation}
+    \hat{y} = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \cdots + \beta_p x_p
+\end{equation}
+
+where $\beta_0$ is the intercept and $\beta_1, \ldots, \beta_p$ are the regression coefficients. Each coefficient $\beta_j$ quantifies the expected change in the target for a one-unit change in feature $x_j$, holding all other features constant.
+
+\subsubsection{Implementation Steps}
+\begin{enumerate}
+    \item Loaded \texttt{Cellphone.csv} and inspected dataset structure using \texttt{df.info()}
+    \item Separated the target variable (\texttt{Price}) from features; dropped \texttt{Product\_id}
+    \item Applied \texttt{StandardScaler} to normalize all features to zero mean and unit variance
+    \item Fitted \texttt{LinearRegression} from scikit-learn on the entire dataset
+    \item Extracted model coefficients (\texttt{model.coef\_}) for explainability analysis
+\end{enumerate}
+
+\subsubsection{Explainability Approach}
+Since features are standardized, the \textbf{absolute magnitude of coefficients} serves as a direct measure of feature importance. A larger absolute coefficient indicates a stronger influence on the predicted price.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images_1/output_1.png}
+    \caption{Feature importance derived from Linear Regression coefficients (absolute values). Internal memory, battery, and thickness show the highest importance.}
+    \label{fig:lr_importance}
+\end{figure}
+
+\subsubsection{Results Interpretation}
+Key coefficients obtained:
+\begin{itemize}
+    \item \texttt{internal mem}: $+179.47$ --- strongest positive predictor of price
+    \item \texttt{battery}: $+171.56$ --- second strongest positive predictor
+    \item \texttt{thickness}: $-161.06$ --- strong negative effect (thinner phones cost more)
+    \item \texttt{ram}: $+149.57$ and \texttt{ppi}: $+135.18$ --- significant positive contributors
+    \item \texttt{Sale}: $-35.07$ and \texttt{weight}: $-35.15$ --- minor negative effects
+\end{itemize}
+
+The coefficient signs and magnitudes provide a complete, transparent explanation of the model's pricing logic.
+
+% -------------------------------------------------------
+\subsection{Part 2: Decision Tree Classifier}
+
+\subsubsection{Model Description}
+A Decision Tree recursively partitions the feature space using axis-aligned splits that maximize class purity. At each internal node, the algorithm selects the feature and threshold that best separates the classes (using Gini impurity in this case):
+\begin{equation}
+    \text{Gini}(t) = 1 - \sum_{k=1}^{K} p_k^2
+\end{equation}
+where $p_k$ is the proportion of class $k$ at node $t$.
+
+\subsubsection{Implementation Steps}
+\begin{enumerate}
+    \item Loaded \texttt{MBA.csv} and filtered to 1,000 rows with valid admission labels
+    \item One-hot encoded categorical features (gender, international, major, race, work\_industry), yielding 34 features
+    \item Trained \texttt{DecisionTreeClassifier} with \texttt{random\_state=42}
+    \item Extracted \texttt{feature\_importances\_} (mean decrease in Gini impurity)
+    \item Visualized the complete tree structure using \texttt{plot\_tree}
+\end{enumerate}
+
+\subsubsection{Explainability Approach}
+Decision trees are inherently interpretable because:
+\begin{itemize}
+    \item Every prediction can be traced through a sequence of if-then rules
+    \item Feature importance is quantified by the total reduction in Gini impurity contributed by each feature across all splits
+    \item The tree structure itself serves as the explanation
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images_1/output_2.png}
+    \caption{Full Decision Tree visualization for MBA admission prediction. Nodes are colored by majority class, with split conditions and sample counts shown.}
+    \label{fig:dt_tree}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{images_1/output_3.png}
+    \caption{Feature importance scores from Decision Tree. GPA, GMAT, and work experience dominate the decision process.}
+    \label{fig:dt_importance}
+\end{figure}
+
+\subsubsection{Results Interpretation}
+\begin{itemize}
+    \item \textbf{GPA (0.200)} is the single most important feature for admission
+    \item \textbf{GMAT (0.175)} and \textbf{work experience (0.118)} follow closely
+    \item Demographic features (gender, race, international status) have minimal importance ($<0.015$), suggesting the model relies primarily on academic and professional merit
+\end{itemize}
+
+% -------------------------------------------------------
+\subsection{Part 3: Random Forest with SHAP}
+
+\subsubsection{Model Description}
+A Random Forest is an ensemble of $B$ decision trees, each trained on a bootstrap sample with random feature subsets. The final prediction is the majority vote:
+\begin{equation}
+    \hat{y} = \text{mode}\{h_1(\mathbf{x}), h_2(\mathbf{x}), \ldots, h_B(\mathbf{x})\}
+\end{equation}
+
+While individual trees are interpretable, the ensemble is a \textbf{black box}. SHAP (SHapley Additive exPlanations) provides post-hoc explainability.
+
+\subsubsection{SHAP Theory}
+SHAP values are based on Shapley values from cooperative game theory. For a prediction $f(\mathbf{x})$:
+\begin{equation}
+    f(\mathbf{x}) = \phi_0 + \sum_{j=1}^{p} \phi_j
+\end{equation}
+where $\phi_0$ is the base value (average prediction) and $\phi_j$ is the SHAP value for feature $j$, representing its marginal contribution.
+
+\subsubsection{Implementation Steps}
+\begin{enumerate}
+    \item Loaded \texttt{winequality-red.csv} and split into train/test (80/20)
+    \item Trained \texttt{RandomForestClassifier} with default hyperparameters
+    \item Initialized \texttt{shap.TreeExplainer} for efficient SHAP computation on tree ensembles
+    \item Computed SHAP values for all test samples
+    \item Generated a SHAP summary plot
+\end{enumerate}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images_1/output_4.png}
+    \caption{SHAP summary plot for Random Forest on wine quality. Each row is a feature; each dot is a test sample. Color indicates feature value (red=high, blue=low); x-axis shows SHAP value (impact on prediction).}
+    \label{fig:shap_summary}
+\end{figure}
+
+\subsubsection{Results Interpretation}
+\begin{itemize}
+    \item \textbf{Alcohol} has the widest spread of SHAP values, making it the most influential feature for wine quality
+    \item \textbf{Volatile acidity} and \textbf{sulphates} are the next most important
+    \item High alcohol content (red dots) consistently pushes predictions toward higher quality (positive SHAP values)
+    \item High volatile acidity (red dots) pushes predictions toward lower quality (negative SHAP values)
+\end{itemize}
+
+% -------------------------------------------------------
+\section{Conclusion}
+This lab demonstrated that intrinsically explainable models offer transparent and interpretable predictions:
+\begin{itemize}
+    \item \textbf{Linear Regression} provides direct coefficient-based feature importance
+    \item \textbf{Decision Trees} offer rule-based explanations through their tree structure
+    \item \textbf{SHAP} bridges the gap between complex models (Random Forest) and interpretability by providing theoretically grounded feature attributions
+\end{itemize}
+
+These methods form the foundation of Explainable AI, enabling practitioners to understand, trust, and debug their machine learning models.
+
+\end{document}

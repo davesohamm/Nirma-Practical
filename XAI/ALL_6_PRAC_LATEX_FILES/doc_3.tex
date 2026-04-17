@@ -1,0 +1,290 @@
+\documentclass[12pt,a4paper]{article}
+
+% Packages
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\geometry{margin=2.5cm, top=3cm, bottom=2.5cm}
+
+% Header with logo
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\includegraphics[height=1.2cm]{uorlogo.jpg}}
+\fancyhead[R]{\small Explainable AI --- MTech Data Science}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Code listing style
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    backgroundcolor=\color{gray!10},
+    keywordstyle=\color{blue},
+    commentstyle=\color{green!60!black},
+    stringstyle=\color{red!70!black},
+    language=Python
+}
+
+\begin{document}
+
+% Title Page
+\begin{titlepage}
+    \centering
+    \includegraphics[width=4cm]{uorlogo.jpg}\\[1cm]
+    {\Large \textbf{Nirma University}}\\[0.3cm]
+    {\large Institute of Technology}\\[0.3cm]
+    {\large Department of Computer Science \& Engineering}\\[1.5cm]
+    {\LARGE \textbf{Explainable AI}}\\[0.5cm]
+    {\Large \textbf{Lab 3: GLM, GAM, PDP, SHAP \& ICE Plots}}\\[1.5cm]
+    {\large \textbf{(Generalized Linear \& Additive Models with Post-hoc Explanations)}}\\[2cm]
+    \begin{tabular}{ll}
+        \textbf{Student Name:} & Soham Dave \\[0.3cm]
+        \textbf{Roll Number:} & 25MCD005 \\[0.3cm]
+        \textbf{Program:} & MTech Data Science, Semester 2 \\[0.3cm]
+        \textbf{Subject:} & Explainable AI \\[0.3cm]
+        \textbf{Subject Guide:} & Dr. Nileshkumar Patel \\
+    \end{tabular}
+    \vfill
+    {\large \today}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% -------------------------------------------------------
+\section{Objective}
+This lab explores advanced interpretable models and visualization techniques for explainability:
+\begin{enumerate}
+    \item \textbf{Generalized Linear Models (GLM)} --- extending linear regression with non-Gaussian distributions
+    \item \textbf{Generalized Additive Models (GAM)} --- capturing non-linear feature effects with splines
+    \item \textbf{Partial Dependence Plots (PDP)} --- visualizing marginal feature effects
+    \item \textbf{SHAP Values} --- computing Shapley-based feature attributions for GAMs
+    \item \textbf{Individual Conditional Expectation (ICE) Plots} --- revealing heterogeneous feature effects
+\end{enumerate}
+
+% -------------------------------------------------------
+\section{Datasets}
+
+\subsection{Diabetes Dataset}
+\begin{itemize}
+    \item \textbf{Source:} \texttt{sklearn.datasets.load\_diabetes}
+    \item \textbf{Task:} Regression (predicting disease progression)
+    \item \textbf{Samples:} 442
+    \item \textbf{Features (10):} age, sex, bmi, bp, s1--s6 (blood serum measurements)
+    \item \textbf{Target:} Quantitative measure of diabetes progression one year after baseline
+    \item \textbf{Split:} 80/20 train-test split (\texttt{random\_state=42})
+\end{itemize}
+
+\subsection{Breast Cancer Wisconsin Dataset}
+\begin{itemize}
+    \item \textbf{Source:} \texttt{sklearn.datasets.load\_breast\_cancer}
+    \item \textbf{Task:} Binary classification (Malignant vs.\ Benign)
+    \item \textbf{Samples:} 569 (212 malignant, 357 benign)
+    \item \textbf{Features Used (10 of 30):} First 10 mean features (radius, texture, perimeter, area, smoothness, compactness, concavity, concave points, symmetry, fractal dimension)
+    \item \textbf{Target:} 0 = Malignant, 1 = Benign
+    \item \textbf{Split:} 80/20 train-test split
+\end{itemize}
+
+% -------------------------------------------------------
+\section{Methodology}
+
+\subsection{Generalized Linear Models (GLM)}
+
+\subsubsection{Theory}
+A GLM extends ordinary linear regression by allowing the response variable to follow any distribution from the exponential family. A GLM consists of three components:
+\begin{itemize}
+    \item \textbf{Random component:} The distribution of $Y$ (e.g., Gaussian, Gamma, Binomial)
+    \item \textbf{Systematic component:} The linear predictor $\eta = \mathbf{X}\boldsymbol{\beta}$
+    \item \textbf{Link function:} $g(\mu) = \eta$, connecting the mean response to the linear predictor
+\end{itemize}
+
+\begin{equation}
+    g(E[Y \mid \mathbf{X}]) = \beta_0 + \beta_1 x_1 + \cdots + \beta_p x_p
+\end{equation}
+
+\subsubsection{GLM for Diabetes (Regression)}
+The diabetes target is continuous, positive, and right-skewed. Therefore:
+\begin{itemize}
+    \item \textbf{Family:} Gamma (appropriate for positive, skewed data)
+    \item \textbf{Link:} Log (ensures predictions remain positive)
+\end{itemize}
+
+With the log link, coefficients have a \textbf{multiplicative interpretation}: $e^{\beta_j}$ gives the multiplicative change in the expected response for a unit increase in $x_j$.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{images_3/output_1.png}
+    \caption{Distribution of diabetes target variable. The right-skewed, positive-valued distribution motivates the use of a Gamma GLM with log link.}
+    \label{fig:diabetes_dist}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{images_3/output_2.png}
+    \caption{GLM coefficients for diabetes prediction. Green bars indicate positive effects (increase disease progression); red bars indicate negative effects.}
+    \label{fig:glm_diabetes}
+\end{figure}
+
+\subsubsection{GLM for Breast Cancer (Classification)}
+For binary classification, the appropriate choice is:
+\begin{itemize}
+    \item \textbf{Family:} Binomial
+    \item \textbf{Link:} Logit (maps probabilities to $(-\infty, +\infty)$)
+\end{itemize}
+
+\begin{equation}
+    \text{logit}(P(Y=1)) = \log\left(\frac{P(Y=1)}{1 - P(Y=1)}\right) = \beta_0 + \sum_{j=1}^{p} \beta_j x_j
+\end{equation}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\textwidth]{images_3/output_4.png}
+    \caption{Distribution of breast cancer target variable (binary). The imbalanced distribution justifies using Binomial GLM with Logit link.}
+    \label{fig:cancer_dist}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{images_3/output_5.png}
+    \caption{GLM coefficients for breast cancer classification. Positive coefficients (blue) increase the probability of benign diagnosis; negative coefficients (red) indicate higher malignancy risk.}
+    \label{fig:glm_cancer}
+\end{figure}
+
+% -------------------------------------------------------
+\subsection{Generalized Additive Models (GAM)}
+
+\subsubsection{Theory}
+GAMs extend GLMs by replacing linear terms with smooth, non-linear functions:
+\begin{equation}
+    g(E[Y]) = \beta_0 + f_1(x_1) + f_2(x_2) + \cdots + f_p(x_p)
+\end{equation}
+
+Each $f_j$ is typically a spline function that can capture non-linear relationships. The \textbf{Effective Degrees of Freedom (EDoF)} of each spline indicates the complexity of the learned shape:
+\begin{itemize}
+    \item EDoF $\approx 1$: Nearly linear relationship
+    \item EDoF $> 3$: Complex, non-linear relationship
+\end{itemize}
+
+\subsubsection{Implementation}
+\begin{itemize}
+    \item \textbf{Diabetes:} \texttt{LinearGAM} with 10 spline terms, optimized via \texttt{gridsearch()}
+    \item \textbf{Results:} MSE = 2750.61, $R^2 = 0.48$
+    \item \textbf{Cancer:} \texttt{LogisticGAM} with 10 spline terms
+    \item \textbf{Results:} Accuracy = 96.49\%, Confusion Matrix: $[[41, 2], [2, 69]]$
+\end{itemize}
+
+% -------------------------------------------------------
+\subsection{Partial Dependence Plots (PDP)}
+
+\subsubsection{Theory}
+PDPs show the marginal effect of a feature $x_j$ on the predicted outcome, averaging over all other features:
+\begin{equation}
+    \hat{f}_j(x_j) = \frac{1}{n} \sum_{i=1}^{n} f(x_j, \mathbf{x}_{i,-j})
+\end{equation}
+
+This reveals the ``average'' relationship between a feature and the prediction.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images_3/output_3.png}
+    \caption{Partial Dependence Plots for all 10 features in the diabetes GAM. Purple lines show the marginal effect; dashed lines show 95\% confidence intervals. Features like \texttt{bmi} show strong non-linear effects.}
+    \label{fig:pdp_diabetes}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images_3/output_6.png}
+    \caption{Partial Dependence Plots for 10 breast cancer features from LogisticGAM. The y-axis shows the probability of a benign diagnosis. Mean radius shows a dramatic negative effect.}
+    \label{fig:pdp_cancer}
+\end{figure}
+
+% -------------------------------------------------------
+\subsection{SHAP Analysis on GAM}
+
+\subsubsection{Theory}
+SHAP values decompose a prediction into additive feature contributions based on cooperative game theory:
+\begin{equation}
+    \phi_j = \sum_{S \subseteq N \setminus \{j\}} \frac{|S|!(|N|-|S|-1)!}{|N|!} \left[ f(S \cup \{j\}) - f(S) \right]
+\end{equation}
+
+Since GAMs are not tree-based, \texttt{KernelExplainer} from SHAP is used, which works with any model by perturbing inputs and observing predictions.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{images_3/output_7.png}
+    \caption{SHAP summary plot for the diabetes GAM model. Features \texttt{bmi} and \texttt{s5} show the widest SHAP value ranges, confirming their importance.}
+    \label{fig:shap_gam}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{images_3/output_8.png}
+    \caption{SHAP force plot for a single patient prediction, showing how each feature pushes the prediction up or down from the base value.}
+    \label{fig:shap_force}
+\end{figure}
+
+% -------------------------------------------------------
+\subsection{Individual Conditional Expectation (ICE) Plots}
+
+\subsubsection{Theory}
+ICE plots extend PDPs by showing the feature-response curve for \textbf{each individual observation}, rather than just the average:
+\begin{equation}
+    \hat{f}_j^{(i)}(x_j) = f(x_j, \mathbf{x}_{i,-j})
+\end{equation}
+
+\textbf{Centered ICE (c-ICE) plots} subtract the value at the minimum point to highlight differences in slopes:
+\begin{equation}
+    \hat{f}_{j,\text{centered}}^{(i)}(x_j) = \hat{f}_j^{(i)}(x_j) - \hat{f}_j^{(i)}(x_{j,\min})
+\end{equation}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{images_3/output_9.png}
+    \caption{ICE plots for key diabetes features. Each thin line represents one patient; the thick line is the average (PDP). The spread of lines reveals heterogeneous feature effects.}
+    \label{fig:ice}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{images_3/output_10.png}
+    \caption{Centered ICE (c-ICE) plots. All curves are anchored at zero, making it easier to see differences in how individual patients respond to feature changes.}
+    \label{fig:cice}
+\end{figure}
+
+% -------------------------------------------------------
+\section{Results and Discussion}
+\begin{itemize}
+    \item \textbf{GLM:} The Gamma GLM with log link identified \texttt{bmi} and \texttt{s5} as the strongest predictors of diabetes progression. The Binomial GLM correctly identified \texttt{mean radius} as the most critical feature for malignancy.
+    \item \textbf{GAM:} By allowing non-linear feature shapes, GAMs captured complex relationships that linear models miss. The cancer GAM achieved 96.49\% accuracy with only 4 misclassifications.
+    \item \textbf{PDP:} Partial dependence plots revealed that features like \texttt{bmi} have a non-linear, accelerating effect on diabetes progression --- information lost in linear coefficient summaries.
+    \item \textbf{SHAP:} Confirmed that \texttt{bmi} and \texttt{s5} dominate predictions, while providing individual-level explanations through force plots.
+    \item \textbf{ICE:} Revealed that patients respond differently to the same feature changes --- some show steep increases in risk with higher \texttt{bmi}, while others are relatively unaffected. This heterogeneity is hidden in averaged PDPs.
+\end{itemize}
+
+% -------------------------------------------------------
+\section{Conclusion}
+This lab demonstrated a progression of explainability techniques from simple coefficient analysis (GLM) to rich, individualized explanations (ICE plots and SHAP). Key takeaways:
+\begin{itemize}
+    \item GLMs provide a principled extension of linear regression with interpretable coefficients
+    \item GAMs capture non-linear effects while maintaining additive interpretability
+    \item PDPs summarize the average effect of each feature, while ICE plots reveal individual variation
+    \item SHAP values provide a theoretically rigorous framework for both global and local explanations
+\end{itemize}
+
+\end{document}
